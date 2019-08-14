@@ -9,7 +9,7 @@ public class Parcel2 {
     }
 
     class Destination {
-        private String label;
+        private  String label;
 
         Destination(String whereTo) {
             label = whereTo;
