@@ -1,0 +1,748 @@
+J'ai compris
+nous utilisons les cookies afin de personnaliser le contenu et les publicités, de fournir des fonctionnalités pour les réseaux sociaux et analyser notre traffic. Nous partageons également des informations sur votre usage de notre site avec nos réseaux sociaux, publicitaires et partenaires d'analyse Voir les détails
+
+
+Example Search
+Project Search
+Top Packages
+Top Classes
+Top Methods
+Top Projects
+report this ad
+Popular Methods
+getConfiguration ( )
+updateLoggers ( )
+reconfigure ( )
+getContext ( )
+setConfigLocation ( )
+start ( )
+getLogger ( )
+stop ( )
+getLoggers ( )
+getExternalContext ( )
+View more ...
+report this ad
+Related Classes
+java.io.File
+java.io.InputStream
+java.util.Iterator
+java.util.Properties
+java.net.URI
+java.nio.charset.Charset
+org.junit.BeforeClass
+java.lang.ref.WeakReference
+org.apache.commons.io.FileUtils
+javax.servlet.ServletContext
+org.apache.logging.log4j.Logger
+org.apache.logging.log4j.LogManager
+org.apache.logging.log4j.Level
+org.elasticsearch.node.Node
+org.openjdk.jmh.annotations.Setup
+javax.management.InstanceAlreadyExistsException
+org.openjdk.jmh.annotations.Mode
+javax.management.NotCompliantMBeanException
+org.springframework.mock.web.MockServletContext
+org.apache.logging.log4j.core.LogEvent
+org.apache.logging.log4j.core.config.Configuration
+org.apache.logging.log4j.core.layout.PatternLayout
+org.apache.logging.log4j.core.Layout
+org.apache.logging.log4j.core.config.LoggerConfig
+org.apache.logging.log4j.core.appender.AbstractAppender
+Java Code Examples for org.apache.logging.log4j.core.LoggerContext.reconfigure()
+The following are Jave code examples for showing how to use reconfigure() of the org.apache.logging.log4j.core.LoggerContext class. You can vote up the examples you like. Your votes will be used in our system to get more good examples.
+Example 1
+Project: linden   File: LindenServer.java   Source Code and License	Vote up	6 votes
+public LindenServer(String conf) throws Exception {
+  File lindenProperties = new File(FilenameUtils.concat(conf, LINDEN_PROPERTIES));
+  File schemaXml = new File(FilenameUtils.concat(conf, SCHEMA_XML));
+  Preconditions.checkArgument(lindenProperties.exists(), "can not find linden.properties.");
+
+  lindenConf = LindenConfigBuilder.build(lindenProperties);
+  if (schemaXml.exists()) {
+    LindenSchema schema = LindenSchemaBuilder.build(schemaXml);
+    lindenConf.setSchema(schema);
+  } else {
+    throw new Exception("schema.xml not found.");
+  }
+  port = lindenConf.getPort();
+  Preconditions.checkNotNull(lindenConf.getLogPath(), "log path can not be null.");
+  System.setProperty(LOG_PATH, lindenConf.getLogPath());
+  System.setProperty(LOG4J_SHUTDOWN_HOOK_ENABLED, "false");
+  System.setProperty(LOG4J_CONTEXT_SELECTOR, "org.apache.logging.log4j.core.async.AsyncLoggerContextSelector");
+  LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+  ctx.setConfigLocation(new File(FilenameUtils.concat(conf, LOG4j2_XML)).toURI());
+  ctx.reconfigure();
+  LOGGER = LoggerFactory.getLogger(LindenServer.class);
+}
+ 
+Example 2
+Project: jumbune   File: LoggerUtil.java   Source Code and License	Vote up	6 votes
+/**
+ * <p>
+ * This method loads the required properties into log4j for the logger
+ * </p>
+ * 
+ * @param logFileDir
+ *            Log file directory
+ * @param taskAttemptID
+ *            The task attempt id
+ * 
+ * @throws IOException
+ *             If any error occurs
+ * @throws URISyntaxException
+ * @throws SAXException
+ * @throws ParserConfigurationException
+ * @throws TransformerException
+ */
+public static void loadLogger(String logFileDir, String taskAttemptID) throws IOException, URISyntaxException, ParserConfigurationException,
+		SAXException, TransformerException {
+    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+    ctx.reconfigure();
+       Configuration config = ctx.getConfiguration();
+       MemoryMappedFileAppender memoryMappedfileAppender = createMemoryMappedFileAppender(config, LOG_APPENDER_NAME + taskAttemptID, logFileDir, taskAttemptID, 0);
+       memoryMappedfileAppender.start();
+    AppenderRef[] ar = new AppenderRef [1];
+       ar[0] = AppenderRef.createAppenderRef(LOG_APPENDER_NAME + taskAttemptID , Level.INFO, null);
+       LoggerConfig lgf = LoggerConfig.createLogger("false",Level.INFO , LOG_CATEGORY + taskAttemptID , null, ar, null, config, null);
+       config.addLogger(LOG_CATEGORY + taskAttemptID, lgf);
+       ctx.getLogger(LOG_CATEGORY + taskAttemptID).addAppender(memoryMappedfileAppender);
+       ctx.updateLoggers();
+       ctx.start();
+	mapReduceLoggers = new ArrayList<Logger>(1);
+	mapReduceLoggers.add(LogManager.getLogger(LOG_CATEGORY + taskAttemptID));
+	LOG.debug("Finished loading logger");
+
+}
+ 
+Example 3
+Project: oxTrust   File: AppInitializer.java   Source Code and License	Vote up	6 votes
+public void updateLoggingSeverity(@Observes @ConfigurationUpdate AppConfiguration appConfiguration) {
+    String loggingLevel = appConfiguration.getLoggingLevel();
+    if (StringHelper.isEmpty(loggingLevel)) {
+        return;
+    }
+
+    log.info("Setting loggers level to: '{}'", loggingLevel);
+
+    LoggerContext loggerContext = LoggerContext.getContext(false);
+
+    if (StringHelper.equalsIgnoreCase("DEFAULT", loggingLevel)) {
+        log.info("Reloadming log4j configuration");
+        loggerContext.reconfigure();
+        return;
+    }
+
+    Level level = Level.toLevel(loggingLevel, Level.INFO);
+
+    for (org.apache.logging.log4j.core.Logger logger : loggerContext.getLoggers()) {
+        String loggerName = logger.getName();
+        if (loggerName.startsWith("org.xdi.service") || loggerName.startsWith("org.xdi.oxauth") || loggerName.startsWith("org.gluu")) {
+            logger.setLevel(level);
+        }
+    }
+}
+ 
+Example 4
+Project: oxAuth   File: LoggerService.java   Source Code and License	Vote up	6 votes
+private boolean setExternalLoggerConfig() {
+    log.info("External log configuration: " + appConfiguration.getExternalLoggerConfiguration());
+    if (StringUtils.isEmpty(appConfiguration.getExternalLoggerConfiguration())) {
+        return false;
+    }
+    File log4jFile = new File(appConfiguration.getExternalLoggerConfiguration());
+    if (!log4jFile.exists()) {
+        log.info("External log configuration does not exist.");
+        return false;
+    }
+    LoggerContext loggerContext = LoggerContext.getContext(false);
+    loggerContext.setConfigLocation(log4jFile.toURI());
+    loggerContext.reconfigure();
+
+    configurationUpdateEvent.select(ConfigurationUpdate.Literal.INSTANCE).fire(this.appConfiguration);
+    return true;
+}
+ 
+Example 5
+Project: oxAuth   File: AppInitializer.java   Source Code and License	Vote up	6 votes
+public void updateLoggingSeverity(@Observes @ConfigurationUpdate AppConfiguration appConfiguration) {
+	String loggingLevel = appConfiguration.getLoggingLevel();
+	if (StringHelper.isEmpty(loggingLevel)) {
+		return;
+	}
+
+	log.info("Setting loggers level to: '{}'", loggingLevel);
+	
+	LoggerContext loggerContext = LoggerContext.getContext(false);
+
+	if (StringHelper.equalsIgnoreCase("DEFAULT", loggingLevel)) {
+		log.info("Reloading log4j configuration");
+		loggerContext.reconfigure();
+		return;
+	}
+
+	Level level = Level.toLevel(loggingLevel, Level.INFO);
+
+	for (org.apache.logging.log4j.core.Logger logger : loggerContext.getLoggers()) {
+		String loggerName = logger.getName();
+		if (loggerName.startsWith("org.xdi.service") || loggerName.startsWith("org.xdi.oxauth") || loggerName.startsWith("org.gluu") || level == Level.OFF) {
+			logger.setLevel(level);
+		}
+	}
+}
+ 
+Example 6
+Project: logging-log4j2   File: AbstractJpaAppenderTest.java   Source Code and License	Vote up	6 votes
+public void tearDown() throws SQLException {
+    final LoggerContext context = LoggerContext.getContext(false);
+    try {
+        String appenderName = "databaseAppender";
+        final Appender appender = context.getConfiguration().getAppender(appenderName);
+        assertNotNull("The appender '" + appenderName + "' should not be null.", appender);
+        assertTrue("The appender should be a JpaAppender.", appender instanceof JpaAppender);
+        ((JpaAppender) appender).getManager().close();
+    } finally {
+        System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+        PropertiesUtil.getProperties().reload();
+        context.reconfigure();
+        StatusLogger.getLogger().reset();
+
+        try (Statement statement = this.connection.createStatement();) {
+            statement.execute("SHUTDOWN");
+        }
+
+        this.connection.close();
+    }
+}
+ 
+Example 7
+Project: log4j2   File: FlumeEmbeddedAgentTest.java   Source Code and License	Vote up	6 votes
+@Before
+public void setUp() throws Exception {
+
+    final File file = new File("target/file-channel");
+    final boolean result = deleteFiles(file);
+
+    /*
+    * Clear out all other appenders associated with this logger to ensure we're
+    * only hitting the Avro appender.
+    */
+    final int[] ports = findFreePorts(2);
+    System.setProperty("primaryPort", Integer.toString(ports[0]));
+    System.setProperty("alternatePort", Integer.toString(ports[1]));
+    primary = new EventCollector(ports[0]);
+    alternate = new EventCollector(ports[1]);
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    ctx = (LoggerContext) LogManager.getContext(false);
+    ctx.reconfigure();
+}
+ 
+Example 8
+Project: log4j2   File: FlumePersistentAppenderTest.java   Source Code and License	Vote up	6 votes
+@Before
+public void setUp() throws Exception {
+
+    final File file = new File("target/persistent");
+    final boolean result = deleteFiles(file);
+
+    /*
+    * Clear out all other appenders associated with this logger to ensure we're
+    * only hitting the Avro appender.
+    */
+    final int[] ports = findFreePorts(2);
+    System.setProperty("primaryPort", Integer.toString(ports[0]));
+    System.setProperty("alternatePort", Integer.toString(ports[1]));
+    primary = new EventCollector(ports[0]);
+    alternate = new EventCollector(ports[1]);
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    ctx = (LoggerContext) LogManager.getContext(false);
+    ctx.reconfigure();
+}
+ 
+Example 9
+Project: log4j2   File: AdvertiserTest.java   Source Code and License	Vote up	6 votes
+@BeforeClass
+public static void setupClass() {
+    final File file = new File(STATUS_LOG);
+    file.delete();
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    final Configuration config = ctx.getConfiguration();
+    if (config instanceof XMLConfiguration) {
+        final String name = ((XMLConfiguration) config).getName();
+        if (name == null || !name.equals("XMLConfigTest")) {
+            ctx.reconfigure();
+        }
+    } else {
+        ctx.reconfigure();
+    }
+}
+ 
+Example 10
+Project: log4j2   File: FileOutputTest.java   Source Code and License	Vote up	6 votes
+@BeforeClass
+public static void setupClass() {
+    final File file = new File(STATUS_LOG);
+    file.delete();
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    final Configuration config = ctx.getConfiguration();
+    if (config instanceof XMLConfiguration) {
+        final String name = ((XMLConfiguration) config).getName();
+        if (name == null || !name.equals("XMLConfigTest")) {
+            ctx.reconfigure();
+        }
+    } else {
+        ctx.reconfigure();
+    }
+}
+ 
+Example 11
+Project: util4j   File: Log4jUtil.java   Source Code and License	Vote up	5 votes
+/**
+ * 根据配置文件路径初始化日志配置
+ * @param logConfigpath
+ */
+public static void reInitLogConfig(String logConfigpath)
+{
+	try {
+		 LoggerContext context =(LoggerContext)LogManager.getContext(false);
+	     context.setConfigLocation(new File(logConfigpath).toURI());
+	     context.reconfigure(); //重新初始化Log4j2的配置上下文
+	     Logger log=LoggerFactory.getLogger(Log4jUtil.class);
+		 log.info("日志配置重新初始化完成:"+logConfigpath);
+	} catch (Exception e) {
+		e.printStackTrace();
+	}  
+}
+ 
+Example 12
+Project: log4j2-extended-jsonlayout   File: ExtendedJsonLayoutTest.java   Source Code and License	Vote up	5 votes
+@BeforeClass
+public static void setupClass() {
+    ThreadContext.clearAll();
+    ConfigurationFactory.setConfigurationFactory(cf);
+    final LoggerContext ctx = LoggerContext.getContext();
+    ctx.reconfigure();
+}
+ 
+Example 13
+Project: monarch   File: LogService.java   Source Code and License	Vote up	5 votes
+private static void init() {
+  LoggerContext context = ((org.apache.logging.log4j.core.Logger) LogManager
+      .getLogger(BASE_LOGGER_NAME, GemFireParameterizedMessageFactory.INSTANCE)).getContext();
+  context.removePropertyChangeListener(propertyChangeListener);
+  context.addPropertyChangeListener(propertyChangeListener);
+  context.reconfigure(); // propertyChangeListener invokes configureFastLoggerDelegating
+  configureLoggers(false, false);
+}
+ 
+Example 14
+Project: oxTrust   File: LoggerService.java   Source Code and License	Vote up	5 votes
+/**
+ * First trying to set external logger config from GluuAppliance.
+ * If there is no valid external path to log4j2.xml location then set default configuration.
+ */
+public void updateLoggerConfigLocation() {
+    if (setExternalLoggerConfig())
+        return;
+    LoggerContext loggerContext = LoggerContext.getContext(false);
+    loggerContext.setConfigLocation(null);
+    loggerContext.reconfigure();
+}
+ 
+Example 15
+Project: oxTrust   File: LoggerService.java   Source Code and License	Vote up	5 votes
+private boolean setExternalLoggerConfig() {
+    GluuAppliance updateAppliance = applianceService.getAppliance();
+    if (StringUtils.isEmpty(updateAppliance.getOxLogConfigLocation())) {
+        return false;
+    }
+    File log4jFile = new File(updateAppliance.getOxLogConfigLocation());
+    if (!log4jFile.exists())
+        return false;
+    LoggerContext loggerContext = LoggerContext.getContext(false);
+    loggerContext.setConfigLocation(log4jFile.toURI());
+    loggerContext.reconfigure();
+
+    configurationUpdateEvent.select(ConfigurationUpdate.Literal.INSTANCE).fire(this.appConfiguration);
+    return true;
+}
+ 
+Example 16
+Project: lettuce-core   File: LettucePerformanceTest.java   Source Code and License	Vote up	5 votes
+@After
+public void after() throws Exception {
+    LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    ctx.reconfigure();
+    executor.shutdown();
+    executor.awaitTermination(1, TimeUnit.MINUTES);
+}
+ 
+Example 17
+Project: oxAuth   File: LoggerService.java   Source Code and License	Vote up	5 votes
+/**
+ * First trying to set external logger config from GluuAppliance.
+ * If there is no valid external path to log4j2.xml location then set default configuration.
+ */
+public void updateLoggerConfigLocation() {
+    if (setExternalLoggerConfig())
+        return;
+    LoggerContext loggerContext = LoggerContext.getContext(false);
+    loggerContext.setConfigLocation(null);
+    loggerContext.reconfigure();
+}
+ 
+Example 18
+Project: LogManager   File: LogConfigurator.java   Source Code and License	Vote up	5 votes
+public static LogConfigurator configure() {
+
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        ctx.reconfigure();
+        Configuration config = ctx.getConfiguration();
+
+        return new LogConfigurator(config);
+    }
+ 
+Example 19
+Project: log4j2   File: CategoryTest.java   Source Code and License	Vote up	5 votes
+@BeforeClass
+public static void setupClass() {
+    appender.start();
+    ConfigurationFactory.setConfigurationFactory(cf);
+    final LoggerContext ctx = (LoggerContext) org.apache.logging.log4j.LogManager.getContext();
+    ctx.reconfigure();
+}
+ 
+Example 20
+Project: log4j2   File: CatchingTagTest.java   Source Code and License	Vote up	5 votes
+@AfterClass
+public static void cleanUpClass() {
+    System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+    final LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    context.reconfigure();
+    StatusLogger.getLogger().reset();
+}
+ 
+Example 21
+Project: log4j2   File: RollingAppenderUncompressedTest.java   Source Code and License	Vote up	5 votes
+@AfterClass
+public static void cleanupClass() {
+    //deleteDir();
+    System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    ctx.reconfigure();
+    StatusLogger.getLogger().reset();
+}
+ 
+Example 22
+Project: log4j2   File: XMLConfigurationPropsTest.java   Source Code and License	Vote up	5 votes
+@Test
+public void testDefaultStatus() {
+    System.out.println("Default status");
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG1);
+    System.setProperty(Constants.LOG4J_DEFAULT_STATUS_LEVEL, "DEBUG");
+    try {
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+        ctx.reconfigure();
+        final Configuration config = ctx.getConfiguration();
+        assertTrue("Configuration is not an XMLConfiguration", config instanceof XMLConfiguration);
+    } finally {
+        System.clearProperty(Constants.LOG4J_DEFAULT_STATUS_LEVEL);
+    }
+}
+ 
+Example 23
+Project: log4j2   File: AbstractJpaAppenderTest.java   Source Code and License	Vote up	5 votes
+public void tearDown() throws SQLException {
+    final LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    try {
+        final Map<String, Appender> list = context.getConfiguration().getAppenders();
+        final Appender appender = list.get("databaseAppender");
+        assertNotNull("The appender should not be null.", appender);
+        assertTrue("The appender should be a JPAAppender.", appender instanceof JPAAppender);
+        ((JPAAppender) appender).getManager().release();
+    } finally {
+        System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+        context.reconfigure();
+        StatusLogger.getLogger().reset();
+
+        Statement statement = null;
+        try {
+            statement = this.connection.createStatement();
+            statement.execute("SHUTDOWN");
+        } finally {
+            try {
+                if (statement != null) {
+                    statement.close();
+                }
+            } catch (final SQLException ignore) {
+                /* */
+            }
+        }
+
+        this.connection.close();
+    }
+}
+ 
+Example 24
+Project: logging-log4j2   File: YamlLayoutTest.java   Source Code and License	Vote up	5 votes
+@BeforeClass
+public static void setupClass() {
+    ThreadContext.clearAll();
+    ConfigurationFactory.setConfigurationFactory(cf);
+    final LoggerContext ctx = LoggerContext.getContext();
+    ctx.reconfigure();
+}
+ 
+Example 25
+Project: log4j2   File: XMLConfigurationPropsTest.java   Source Code and License	Vote up	5 votes
+@Test
+public void testWithConfigProp() {
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    System.setProperty("log4j.level", "debug");
+    try {
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+        ctx.reconfigure();
+        final Configuration config = ctx.getConfiguration();
+        assertTrue("Configuration is not an XMLConfiguration", config instanceof XMLConfiguration);
+    } finally {
+        System.clearProperty("log4j.level");
+
+    }
+}
+ 
+Example 26
+Project: log4j2   File: AdvertiserTest.java   Source Code and License	Vote up	5 votes
+@AfterClass
+public static void cleanupClass() {
+    System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    ctx.reconfigure();
+    StatusLogger.getLogger().reset();
+    final File file = new File(STATUS_LOG);
+    file.delete();
+}
+ 
+Example 27
+Project: logging-log4j2   File: SerializedLayoutTest.java   Source Code and License	Vote up	5 votes
+@BeforeClass
+public static void setupClass() {
+    try {
+        Class.forName("java.io.ObjectInputFilter");
+        useObjectInputStream = true;
+    } catch (ClassNotFoundException ex) {
+        // Ignore the exception
+    }
+    ConfigurationFactory.setConfigurationFactory(cf);
+    final LoggerContext ctx = LoggerContext.getContext();
+    ctx.reconfigure();
+}
+ 
+Example 28
+Project: log4j2   File: RFC5424LayoutTest.java   Source Code and License	Vote up	5 votes
+@BeforeClass
+public static void setupClass() {
+    StatusLogger.getLogger().setLevel(Level.OFF);
+    ConfigurationFactory.setConfigurationFactory(cf);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    ctx.reconfigure();
+}
+ 
+Example 29
+Project: log4j2   File: FileOutputTest.java   Source Code and License	Vote up	5 votes
+@AfterClass
+public static void cleanupClass() {
+    System.clearProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY);
+    final LoggerContext ctx = (LoggerContext) LogManager.getContext();
+    ctx.reconfigure();
+    StatusLogger.getLogger().reset();
+    final File file = new File(STATUS_LOG);
+    file.delete();
+}
+ 
+Example 30
+Project: logging-log4j2   File: XmlConfigurationPropsTest.java   Source Code and License	Vote up	5 votes
+@Test
+public void testWithConfigProp() {
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, CONFIG);
+    System.setProperty("log4j.level", "warn");
+    try {
+        final LoggerContext ctx = LoggerContext.getContext();
+        ctx.reconfigure();
+        final Configuration config = ctx.getConfiguration();
+        assertTrue("Configuration is not an XmlConfiguration", config instanceof XmlConfiguration);
+    } finally {
+        System.clearProperty("log4j.level");
+
+    }
+}
+ 
+Example 31
+Project: OneClient   File: OneClientLogging.java   Source Code and License	Vote up	4 votes
+public static void init() {
+	LoggerContext context = (LoggerContext) LogManager.getContext(true);
+	context.reconfigure();
+}
+ 
+Example 32
+Project: logstash-appender   File: LogstashAppenderTest.java   Source Code and License	Vote up	4 votes
+private Logger configure(boolean details, boolean hasParameters)
+{
+    String application = null;
+    String environment = null;
+    boolean appendClassInformation = false;
+    String mdcKeys = "";
+    String parameters = "";
+
+    if (details)
+    {
+        application = "Test";
+        environment = "Development";
+        appendClassInformation = true;
+        mdcKeys = "key1,key2,key3";
+    }
+
+    if (hasParameters)
+    {
+        parameters = "group=PSP&group2=REQUEST";
+    }
+
+    LogstashAppender appender = new LogstashAppender(
+            "TEST_APPENDER",
+            null,
+            createDefaultLayout(),
+            application,
+            environment,
+            "localhost",
+            12345,
+            mdcKeys,
+            parameters,
+            appendClassInformation,
+            Integer.MIN_VALUE);
+    appender.start();
+
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    context.reconfigure();
+    Configuration configuration = context.getConfiguration();
+    configuration.getAppenders().remove(appender.getName());
+    configuration.addAppender(appender);
+    configuration.getLoggerConfig(LogstashAppenderTest.class.getName()).setLevel(INFO);
+    context.updateLoggers();
+
+    System.out.println(configuration.getAppenders());
+
+    org.apache.logging.log4j.core.Logger logger = (org.apache.logging.log4j.core.Logger) LogManager.getLogger(LogstashAppenderTest.class);
+    logger.addAppender(appender);
+    return logger;
+}
+ 
+Example 33
+Project: logstash-gelf   File: GelfLogAppenderIncludeFullMdcTests.java   Source Code and License	Vote up	4 votes
+@BeforeAll
+public static void setupClass() {
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, "log4j2/log4j2-include-full-mdc.xml");
+    loggerContext = (LoggerContext) LogManager.getContext(false);
+    loggerContext.reconfigure();
+}
+ 
+Example 34
+Project: Starbound-Mod-Manager   File: Settings.java   Source Code and License	Vote up	4 votes
+private void setLoggerLevel(final Level level, final LoggerType loggerType) {
+	
+	if (loggerType == LoggerType.ALL) {
+		
+		System.setProperty("consolelevel", level.toString());
+		System.setProperty("filelevel", level.toString());
+		
+	} else {
+	
+		if (loggerType == LoggerType.CONSOLE) {
+			System.setProperty("consolelevel", level.toString());
+		} else if (loggerType == LoggerType.FILE) {
+			System.setProperty("filelevel", level.toString());
+		}
+	
+	}
+	
+	LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+	ctx.reconfigure();
+	
+}
+ 
+Example 35
+Project: logstash-gelf   File: GelfLogAppenderTests.java   Source Code and License	Vote up	4 votes
+protected static void reconfigure(String configXml) {
+    System.setProperty(ConfigurationFactory.CONFIGURATION_FILE_PROPERTY, configXml);
+    loggerContext = (LoggerContext) LogManager.getContext(false);
+    loggerContext.reconfigure();
+}
+ 
+Example 36
+Project: log4j-configuration-builder   File: ConfigurationBuilder.java   Source Code and License	Vote up	3 votes
+/**
+ * Builds the configuration with {@link #build()} and then
+ * reconfigures the Apache Log4j2 context. The process also
+ * installs a shut-down hook to stop the context:
+ * 
+ * <ul>
+ * <li>Builds the configuration into an instance of
+ * {@link EmbeddedConfiguration} using {@link #build()}.
+ * <li>Sets the default {@link ConfigurationFactory} to
+ * {@link EmbeddedConfigurationFactory} using
+ * {@link ConfigurationFactory#setConfigurationFactory(ConfigurationFactory)}
+ * .
+ * <li>If asynchronous loggers are enabled, creates an
+ * instance of {@link AsyncLogger}. If not, creates an
+ * instance of {@link LoggerContext}.
+ * <li>Reconfigures the context using
+ * {@link LoggerContext#reconfigure()}.
+ * <li>Starts the context using
+ * {@link LoggerContext#start()}.
+ * <li>Installs a shut down hook to
+ * {@link Runtime#addShutdownHook(Thread)} to ensure the
+ * logger context is stopped with
+ * {@link LoggerContext#stop()}.
+ * </ul>
+ * 
+ * <p>
+ * After running this method, the user is able to use Apache
+ * Log4j as if it was configured using an instance of
+ * {@code log4j.xml}.
+ * 
+ * @see ConfigurationFactory
+ * @see LoggerContext#reconfigure()
+ * @see EmbeddedConfigurationFactory
+ * @see EmbeddedConfiguration
+ */
+public final void configure() {
+  final LoggerContext context = asyncLoggers
+      ? (AsyncLoggerContext) LogManager.getContext(ConfigurationBuilder.class.getClassLoader(),
+          false)
+      : (LoggerContext) LogManager.getContext(ConfigurationBuilder.class.getClassLoader(),
+          false);
+  final AbstractConfiguration configuration = build();
+  final EmbeddedConfigurationFactory factory = new EmbeddedConfigurationFactory(configuration);
+  ConfigurationFactory.setConfigurationFactory(factory);
+  context.reconfigure();
+  context.start();
+  configuration.start();
+  final String rootLoggerName = LogManager.ROOT_LOGGER_NAME;
+  final Logger logger = LogManager.getLogger(rootLoggerName);
+  logger.info("Initialized logging configuration: {} (async-loggers={})",
+      configuration.getName(), logger instanceof AsyncLogger);
+  Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+    @Override
+    public void run() {
+      logger.info("Stopping logging configuration: {}", configuration.getName());
+      try {
+        configuration.stop();
+        context.stop();
+      } catch (Exception e) {
+        System.err.println(e);
+      }
+    }
+  }, rootLoggerName));
+}
+ 
+Terms of Use Privacy Support & Contact
+Program Creek
